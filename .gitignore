@@ -1,10 +1,1 @@
-*
-
-!*/
-
-!.gitignore
-!/*.py
-!/*.md
-!/*.pcap
-!/*.csv
-!/*.txt
+**/__pycache__
