@@ -6,16 +6,19 @@
     -- 0xca7
 """
 
+import os
 import sys
 import time
 from pathlib import Path
 
+from napy.visualize import Visualizer
 from napy.analyzer import NetAnalyzer
 from napy.reader import NetReader
 from napy.writer import write_report
 
 from napy.global_defs import BANNER
 
+OUTPATH = './output'
 
 def check_file(filename):
     check = Path(filename)
@@ -24,6 +27,16 @@ def check_file(filename):
 def main():
 
     print(BANNER)
+
+    try:
+        os.mkdir(OUTPATH)
+    except OSError as e:
+        # if directory already exists, we don't care
+        if e.errno != 17: 
+            print('output directory:\n{}\n'.format(e))
+    else:
+        print('output will be written to: {}'.format(OUTPATH))
+        
 
     """
     check arguments
@@ -61,8 +74,23 @@ def main():
     # shows who is talking to who, by which ports / protocol
     con = analyzer.connections()
 
+    # create a visualizer to show the connection graph
+    vis = Visualizer()
+    # get all ip addresses from the PCAP
+    vis.add_nodes(analyzer.get_ips())
+    # draw edges between them by using connections 
+    vis.add_edges(con)
+
+    # mark the end of the analysis output
+    print('-------------------------------------')
+
+
+    # plot the graph
+    print('[+] writing connection graph')
+    vis.show(OUTPATH)
+
     print('[+] writing report')
-    write_report(filename, analyzer, con_ip, con)
+    write_report(filename, OUTPATH, analyzer, con_ip, con)
 
     print('[+] time taken: {}'.format(time.time() - start))
     
