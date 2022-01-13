@@ -7,32 +7,60 @@ wireshark csv dump
 """
 class NetAnalyzer():
 
+    """
+    initializes a new NetAnalyzer instance 
+    with data read from a csv
+    """
     def __init__(self, data) -> None:
         self.data = data
 
+    """
+    raw printing of the data, can be used for debugging
+    """
     def show(self) -> None:
         print(self.data)
 
+    """int
+    get the total number of packets in the csv file
+    """
     def get_no_packets(self) -> int:
         return len(self.data)
     
+    """list
+    get a list of de-duped IP addresses in the csv
+    """
     def get_ips(self) -> list:
         unique_sips = set( [x[FIELD_INDEX_SIP] for x in self.data] ) 
         unique_dips = set( [x[FIELD_INDEX_DIP] for x in self.data] )
         return list(unique_sips.union(unique_dips))
     
+    """list
+    get all the IP addresses in the `source ip` column
+    """
     def get_raw_sips(self) -> list:
         return [ x[FIELD_INDEX_SIP] for x in self.data ]
 
+    """list
+    get all the IP addresses in the `destination ip` column
+    """
     def get_raw_dips(self) -> list:
         return [ x[FIELD_INDEX_DIP] for x in self.data ]
 
+    """list
+    get all the ports in the `sports` column
+    """
     def get_sports(self) -> list:
         return [int(x[FIELD_INDEX_SPORT]) for x in self.data]
 
+    """list
+    get all the ports in the `dports` column
+    """
     def get_dports(self) -> list:
         return [int(x[FIELD_INDEX_DPORT]) for x in self.data]
 
+    """list
+    get a list of all the unique ports in the csv
+    """
     def get_ports(self) -> list:
         unique_sports = set( filter(lambda x: x != 0,   
             [int(x[FIELD_INDEX_SPORT]) for x in self.data]) ) 
@@ -40,6 +68,9 @@ class NetAnalyzer():
             [int(x[FIELD_INDEX_DPORT]) for x in self.data]) )
         return list(unique_sports.union(unique_dports))
 
+    """list
+    get only the well known ports, below 1024
+    """
     def get_well_known_ports(self) -> list:
         unique_sports = set( filter(lambda x: x < 1024 and x != 0, 
             [int(x[FIELD_INDEX_SPORT]) for x in self.data]) )
@@ -47,19 +78,31 @@ class NetAnalyzer():
             [int(x[FIELD_INDEX_DPORT]) for x in self.data]) )
         return list(unique_sports.union(unique_dports))
 
+    """list
+    get all unique MAC addresses found in the csv
+    """
     def get_macs(self) -> list:
         unique_smacs = set( [x[FIELD_INDEX_SMAC] for x in self.data] ) 
         unique_dmacs = set( [x[FIELD_INDEX_DMAC] for x in self.data] )
         return list(unique_smacs.union(unique_dmacs))
 
+    """list
+    get all protocols found in the csv
+    """
     def get_protos(self) -> list:
         unique_protos = set( [x[FIELD_INDEX_PROTO] for x in self.data] ) 
         return list(unique_protos)
 
+    """int
+    get the maximum packet length found in the csv
+    """
     def get_max_len(self) -> int:
         unique_lens = set( [ int(x[FIELD_INDEX_LEN]) for x in self.data] )
         return np.max(list(unique_lens))
 
+    """int
+    get the minimum packet length found in the csv
+    """
     def get_min_len(self) -> int:
         unique_lens = set( [ int(x[FIELD_INDEX_LEN]) for x in self.data] )
         return np.min(list(unique_lens))

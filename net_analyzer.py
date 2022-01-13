@@ -20,10 +20,18 @@ from napy.global_defs import BANNER
 
 OUTPATH = './output'
 
+"""Return true if the file exists
+
+checks if a file exists or not
+"""
 def check_file(filename):
     check = Path(filename)
     return check.is_file()
 
+"""Return 1 if exception occured
+
+the main function of the network analyzer
+"""
 def main():
 
     print(BANNER)
@@ -34,32 +42,33 @@ def main():
         # if directory already exists, we don't care
         if e.errno != 17: 
             print('output directory:\n{}\n'.format(e))
+            sys.exit(1)
     else:
         print('output will be written to: {}'.format(OUTPATH))
         
 
-    """
-    check arguments
-    """
+    # check argument number
     if len(sys.argv) <= 1:
         print('usage: ./net_analyze [csv-file]')
         sys.exit(1)
 
+    # check if the file to analyze exists
     filename = sys.argv[1]
 
     if not check_file(filename):
         print('[!] no such file: {}'.format(filename))
         sys.exit(1)
 
-    """
-    read data, analyze, write report 
-    """
+    # get the start time in order to calculate the 
+    # total time spent for analysis later
     start = time.time()
 
-    # read the data from a csv file
+    # read the data from a csv file passed as an arg
     reader = NetReader(filename)
-    # filter so only IPv4 remains
+
+    # filter so only IPv4 packets remain
     reader.filter_v4()
+
     # get the filtered, raw, extracted data 
     data = reader.get_raw()
 
@@ -76,22 +85,25 @@ def main():
 
     # create a visualizer to show the connection graph
     vis = Visualizer()
+
     # get all ip addresses from the PCAP
     vis.add_nodes(analyzer.get_ips())
-    # draw edges between them by using connections 
+
+    # draw edges between IPs by using connections 
     vis.add_edges(con)
 
     # mark the end of the analysis output
     print('-------------------------------------')
 
-
-    # plot the graph
+    # plot the graph, save plot to a file
     print('[+] writing connection graph')
     vis.show(OUTPATH)
 
+    # write out the report 
     print('[+] writing report')
     write_report(filename, OUTPATH, analyzer, con_ip, con)
 
+    # show the total time spent for analysis and reporting
     print('[+] time taken: {}'.format(time.time() - start))
     
 

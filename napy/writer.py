@@ -34,11 +34,11 @@ def write_multiple(out, title, data, linebreak):
 
 """
 main report writer function
-@param csv the csv filename
-@param path the path to write to
-@param analyzer NetAnalyzer class holding data
-@param ip_con ip connections, no ports
-@param con ip connections with ports
+csv         the csv filename
+path        the path to write to
+analyzer    NetAnalyzer class holding data
+ip_con      ip connections, no ports
+con         ip connections with ports
 """
 def write_report(csv, path, analyzer, ip_con, con):
 

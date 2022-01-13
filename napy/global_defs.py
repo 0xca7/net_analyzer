@@ -1,8 +1,10 @@
 """
     This file is there to synchronize the wireshark
     columns with the python script.
+
     Expected columns:
-    "No.","Time","Source","Destination","Sport","Dport","Protocol","Length","Smac","Dmac","Info"
+    "No.","Time","Source","Destination","Sport",
+    "Dport","Protocol","Length","Smac","Dmac","Info"
 """
 
 FIELD_SOURCE_IP = 'Source'

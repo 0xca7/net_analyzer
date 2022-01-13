@@ -4,7 +4,7 @@
 
 
 ## Intro
-This is my **crappy** python script to summarize network data captured with wireshark.
+This is my python script to summarize network data captured with wireshark.
 
 ## Usage
 You need to have the following setup for your columns in wireshark, after you have that, export the PCAP as a csv:
@@ -17,10 +17,10 @@ If you want to change any of this, my definitions are in `napy/global_defs.py`
 If you have this set up, just run: 
 
 ```
-python3 main.py [csv filename]
+python3 net_analyzer.py [csv filename]
 ```
 
-NetAnalyzer will generate a report called `report_[csv filename].csv.txt` which will contain a summary of the csv.
+NetAnalyzer will generate a report called `report_[csv filename].csv.txt` and a connection graph which will contain a summary of the csv. The output is written to the `output` directory.
 
 ## Sample Output
 
@@ -96,7 +96,10 @@ The report which is generated contains:
 - Well-Known Ports
 - Protocols found in the dump.
 - Connections, only which IPs are communicating
-- Connections, with Port Numbers
+- Connections, with IPs and Port Numbers
+
+You also get a nice connection graph showing which IPs are communicating
+with each other.
 
 **any field which is not recognized or empty is replaced with zero**
 
