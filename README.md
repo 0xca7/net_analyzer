@@ -1,106 +1,53 @@
-# NetAnalyzer
-## summarizes network data captured with wireshark
-### 0xca7
+# Net Analyzer
 
+## Summary
 
-## Intro
-This is my python script to summarize network data captured with wireshark.
+This application takes a pcap file and creates a short summary of it.
+I use this in my work when I obtain some network data in order to get
+a brief overview of the pcap I'm looking at.
+
+Because I thought this might be of use to others, I decided to open
+source the project, although it's not very sophisticated it may save
+some time.
+
+This was in Python3 before, I rewrote this is Rust, because it's faster and more usable. The plotting is still done via Python3's **networkx, pandas and matplotlib**
 
 ## Usage
-You need to have the following setup for your columns in wireshark, after you have that, export the PCAP as a csv:
-```
-"No.","Time","Source","Destination","Sport","Dport","Protocol","Length","Smac","Dmac","Info"
-```
 
-If you want to change any of this, my definitions are in `napy/global_defs.py`
-
-If you have this set up, just run: 
+I will demonstrate usage via a test pcap file I supply with this repo.
 
 ```
-python3 net_analyzer.py [csv filename]
+# bootstrap (just creates the results directory at this time)
+./bootstrap.sh
+
+# convert the pcap to csv, yields captures/test.pcap.csv
+./captures/conv_csv.sh captures/test.pcap
+
+# run the application
+cargo run -- captures/test.pcap.csv report
+
+[+] read 141 packets from csv
+[+] reading CSV took 1.470697ms
+[+] analysis took 102.449µs
+[+] report will be written as: results/report-13_2_2022-20_26_12.txt
+[+] writing graph
+[+] done!
+
+# report is the name of the report, a timestamp will be added
+# netanalyzer is applied to test.pcap.csv
+
+tree result/
+
+results/
+├── graph.csv
+├── graph.png
+└── report-13_2_2022-20_26_12.txt
+
+0 directories, 3 files
 ```
 
-NetAnalyzer will generate a report called `report_[csv filename].csv.txt` and a connection graph which will contain a summary of the csv. The output is written to the `output` directory.
-
-## Sample Output
-
-I included a sample capture in `sample_data` you may want to look at. It also contains the CSV file
-that I analyze below.
-
-```console
-λ net_analyzer.py sample_data/sample_capture.csv 
-
-  _  _     _     _             _                 
- | \| |___| |_  /_\  _ _  __ _| |_  _ ______ _ _ 
- | .` / -_)  _|/ _ \| ' \/ _` | | || |_ / -_) '_|
- |_|\_\___|\__/_/ \_\_||_\__,_|_|\_, /__\___|_|  
-                                 |__/           
-
-[+] NetReader: reading data...
-[+] NetReader: done.
-[+] NetReader: filtering IPv4
-[+] NetReader: done.
-[+] writing report
-[+] time taken: 0.021047592163085938
-
-λ cat report_sample_capture.csv.txt 
-
-  _  _     _     _             _                 
- | \| |___| |_  /_\  _ _  __ _| |_  _ ______ _ _ 
- | .` / -_)  _|/ _ \| ' \/ _` | | || |_ / -_) '_|
- |_|\_\___|\__/_/ \_\_||_\__,_|_|\_, /__\___|_|  
-                                 |__/           
- Analysis Report
- ------------------------------------------------
-
-[+] no. packets analyzed: 19
-
-[+] unique IP addresses:
-127.0.0.1
-
-[+] unique ports:
-7777    1234    50868   42092
-
-[+] well-known ports
-
-
-[+] unique MAC addresses:
-00:00:00_00:00:00
-
-[+] protocols:
-UDP     ICMP    TCP
-
-[+] max. packet length: 98
-[+] min. packet length:51
-
-[+] ip connections: 
-('127.0.0.1', '127.0.0.1')
-
-[+] full connection overview: 
-127.0.0.1       -       ->      127.0.0.1       -
-127.0.0.1       50868   ->      127.0.0.1       1234
-127.0.0.1       1234    ->      127.0.0.1       50868
-127.0.0.1       42092   ->      127.0.0.1       7777
-
-------------------------------------------------
-
-```
-
-## Summary Output
-
-The report which is generated contains:
-
-- Number of Packets
-- IPs
-- Ports
-- Well-Known Ports
-- Protocols found in the dump.
-- Connections, only which IPs are communicating
-- Connections, with IPs and Port Numbers
-
-You also get a nice connection graph showing which IPs are communicating
-with each other.
-
-**any field which is not recognized or empty is replaced with zero**
+That's it, you now have a report in results and a graph of the network.
+The graph can get very messy of there are a lot of hosts, so play with
+py/visualize.py or just forget about the graph :^)
 
 ### 0xca7
