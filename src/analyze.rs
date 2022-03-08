@@ -75,6 +75,8 @@ pub struct DumpAnalysis {
     unique_packets: HashSet<DataItem>,
     /// stores all connections src IP -> dst IP
     pub connections: Vec<(String, String, String)>,
+    /// stores connections only for IP addresses
+    pub ip_connections: Vec<(String, String)>,
     /// stores all protocols found by name
     proto_names: Vec<String>,
     /// stores all unique ports
@@ -88,6 +90,7 @@ impl DumpAnalysis {
         DumpAnalysis {
             unique_packets:     HashSet::new(),
             connections:        Vec::new(),
+            ip_connections:     Vec::new(),
             proto_names:        Vec::new(),
             ports:              Vec::new(),
         }
@@ -113,6 +116,7 @@ impl DumpAnalysis {
     /// MAC addresses, also includes the protocol name
     fn analyze_connections_full(&mut self) {
 
+        let mut ip_connections= HashSet::new();
         let mut connections = HashSet::new();
         let mut ports = HashSet::new();
         let mut proto_names =  HashSet::new();
@@ -130,6 +134,11 @@ impl DumpAnalysis {
             let dip = item.get_dstip();
 
             if sip != "" && dip != "" {
+
+                // log only which IP talks to which IP, deduplicate
+                ip_connections.insert((sip.clone(), dip.clone()));
+
+                // log IP, port and protocol here
 
                 // UDP
                 if item.usport.is_some() {
@@ -168,6 +177,7 @@ impl DumpAnalysis {
 
         // convert to vector
         self.connections = connections.into_iter().collect();
+        self.ip_connections = ip_connections.into_iter().collect();
         self.proto_names = proto_names.into_iter().collect();
         self.ports = ports.into_iter().collect();
     }
@@ -180,6 +190,11 @@ impl DumpAnalysis {
     /// getter for connections
     pub fn get_connections(&self) -> Vec<(String, String, String)> {
         self.connections.clone()
+    }
+
+    /// getter for ip connections
+    pub fn get_ip_connections(&self) -> Vec<(String, String)> {
+        self.ip_connections.clone()
     }
 
     /// getter for protocol names

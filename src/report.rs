@@ -68,6 +68,22 @@ fn format_communications(com: Vec<(String, String, String)>) -> String {
 
 }
 
+/// format the ip communications seen into a string
+fn format_ip_communications(com: Vec<(String, String)>) -> String {
+
+    let mut out = String::new();
+
+    out.push_str(HEADER_COM);
+
+    for item in com {
+        let s = format!("{} -> {}\n", item.0, item.1);
+        out.push_str(&s);
+    }
+
+    out
+
+}
+
 /// format the ports into a string
 fn format_ports(ports: Vec<(PortType, u16)>) -> String {
 
@@ -109,6 +125,7 @@ pub fn write_report(data: &DumpAnalysis, path: &String) {
 
     let no_unique = data.len();
     let connections = data.get_connections();
+    let ip_connections = data.get_ip_connections();
     let portnumbers = data.get_ports();
     let protocols = data.get_protocol_names();
 
@@ -116,6 +133,7 @@ pub fn write_report(data: &DumpAnalysis, path: &String) {
         portnumbers.len(), protocols.len());
 
     let coms   = format_communications(connections);
+    let ip_coms   = format_ip_communications(ip_connections);
     let ports  = format_ports(portnumbers);
     let protos = format_protonames(protocols);
 
@@ -138,6 +156,10 @@ pub fn write_report(data: &DumpAnalysis, path: &String) {
     };
 
     if let Err(e) = writeln!(file, "{}", sum) {
+        eprintln!("Couldn't write to file: {}", e);
+    }
+
+    if let Err(e) = writeln!(file, "{}", ip_coms) {
         eprintln!("Couldn't write to file: {}", e);
     }
 
@@ -177,7 +199,7 @@ pub fn write_graph(data: &DumpAnalysis) {
 
     // get all edges and write them to a file
     // in csv format
-    for connection in &data.connections {
+    for connection in &data.ip_connections {
         content.push_str(&format!("{},{}\n", 
             connection.0, connection.1));
     }

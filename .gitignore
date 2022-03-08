@@ -16,3 +16,5 @@ Cargo.lock
 # all generated csv files
 *.csv
 results/*
+*.pdf
+*.png

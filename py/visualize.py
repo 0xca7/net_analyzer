@@ -38,9 +38,11 @@ class Visualizer:
     write a plot of the graph to a file
     """
     def show(self, path):
-        nx.draw(self.G, with_labels=True, node_size=20, font_size=2)
+        nx.draw(self.G, with_labels=True, node_size=20, 
+            font_size=2, node_color="tab:green", edge_color='tab:grey',
+            width=0.25)
         filename = path + '/' + 'graph.png'
-        plt.savefig(filename, dpi=300)
+        plt.savefig(filename, dpi=1200)
 
 
 """list of nodes (1d list) and edges (list of tuples (src,dst))
@@ -53,7 +55,7 @@ def read_graph():
     nodes = set()
     edges = list()
 
-    df = pd.read_csv('results/graph.csv')
+    df = pd.read_csv('../results/graph.csv')
 
     for (src,dst) in zip(df['src'], df['dst']):
         
@@ -72,9 +74,15 @@ the plot
 if __name__ == '__main__':
 
     v = Visualizer()
+
+    print('[+] reading graph data')
     (nodes, edges) = read_graph()
 
+    print('[+] adding nodes')
     v.add_nodes(nodes)
+
+    print('[+] adding edges')
     v.add_edges(edges)
 
-    v.show('results')
+    print('[+] writing result')
+    v.show('../results')
