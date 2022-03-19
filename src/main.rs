@@ -22,12 +22,21 @@ use std::error::Error;
 use std::time::Instant;
 
 use chrono::prelude::*;
+use csv;
 
 mod analyze;
 use analyze::{DataItem, DumpAnalysis};
 
 mod report;
 use report::{write_report, write_graph};
+
+mod utils;
+use utils::{
+    preprocess, 
+    visualize, 
+    get_line_count, 
+    progress_bar
+};
 
 /// read the csv file given by `filepath` and de-dupe the file using 
 /// a `HashSet`. This returns unique entries (rows) of the csv.
@@ -36,6 +45,9 @@ fn read_csv(filepath: &str) -> Result<DumpAnalysis, Box<dyn Error>> {
     let mut count: usize = 0;
     let mut data = DumpAnalysis::new();
 
+    // get the number of lines in the csv minus the header line
+    let no_lines = get_line_count(filepath)?;
+
     let file = File::open(filepath)?;
     let mut rdr = csv::Reader::from_reader(file);
 
@@ -43,9 +55,7 @@ fn read_csv(filepath: &str) -> Result<DumpAnalysis, Box<dyn Error>> {
         let record: DataItem = result?;
         data.insert_packet(record);
         count += 1;
-        if count % 10000 == 0 {
-            print!("-- read {} packets\n", count);
-        }
+        progress_bar(no_lines, count);
     }
 
     print!("[+] read {} packets from csv\n", count);
@@ -64,15 +74,33 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
 
+    // check the user supplied arguments
     if args.len() != 3 {
         usage();
         std::process::exit(1);
+    } else {
+        // check if the file to parse even exists
+        if !std::path::Path::new(&args[1]).exists() {
+            print!("file {} does not exist\n", args[1]);
+            std::process::exit(1);
+        }
     }
 
     let mut now = Instant::now();
-    
-    // read the csv and get a hash set out
-    let mut data = match read_csv(&args[1]) {
+
+    // get the pcap to appropriate csv format
+    print!("[+] converting to CSV\n");
+    preprocess(&args[1]);
+    print!("[+] conversion took {:?}\n", now.elapsed());
+
+
+    // read the csv and get a hash set (de-duped)
+    now = Instant::now();
+    let mut filepath : String = args[1].clone();
+    filepath.push_str(".csv");
+
+    print!("[+] reading CSV: {}\n", filepath);
+    let mut data = match read_csv(&filepath) {
         Ok(data) => data,
         Err(e) => {
             print!("error: {}\n", e);
@@ -84,17 +112,17 @@ fn main() {
 
     now = Instant::now();
 
+    print!("[+] analyzing data\n");
     data.analyze();
-
     print!("[+] analysis took {:?}\n", now.elapsed());
 
     // create a report file and save it 
     let local: DateTime<Local> = Local::now();
-    let filename = format!("results/{}-{}_{}_{}-{}_{}_{}.txt",
+    let filename = 
+        format!("results/{}-{}_{}_{}-{}_{}_{}.txt",
         args[2], // this is the filename passed by the user
         local.day(), local.month(), local.year(),
         local.hour(), local.minute(), local.second());
-
 
     print!("[+] report will be written as: {}\n", filename);
     write_report(&data, &filename);
@@ -102,10 +130,10 @@ fn main() {
     print!("[+] writing graph\n");
     write_graph(&data);
 
-    std::process::Command::new("python3")
-        .arg("py/visualize.py")
-        .output()
-        .expect("failed to execute python visualizer");
+    now = Instant::now();
+    print!("[+] running visualizer\n");
+    visualize();
+    print!("[+] visualization took {:?}\n", now.elapsed());
 
     print!("[+] done!\n");
 

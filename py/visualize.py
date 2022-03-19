@@ -3,6 +3,8 @@
     hosts, using IPs
 """
 
+from pyvis.network import Network
+
 import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -44,6 +46,11 @@ class Visualizer:
         filename = path + '/' + 'graph.png'
         plt.savefig(filename, dpi=1200)
 
+    def interactive(self):
+        nt = Network('1000px', '1000px')
+        nt.from_nx(self.G)
+        nt.show('nx.html')
+
 
 """list of nodes (1d list) and edges (list of tuples (src,dst))
 
@@ -55,7 +62,7 @@ def read_graph():
     nodes = set()
     edges = list()
 
-    df = pd.read_csv('../results/graph.csv')
+    df = pd.read_csv('results/graph.csv')
 
     for (src,dst) in zip(df['src'], df['dst']):
         
@@ -85,4 +92,8 @@ if __name__ == '__main__':
     v.add_edges(edges)
 
     print('[+] writing result')
-    v.show('../results')
+    v.show('results')
+
+    print('[+] interactive')
+    v.interactive()
+    
