@@ -16,125 +16,80 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+///
+/// 
+/// parse out the data from a pcap file. I only need a few fields for my 
+/// use case, as such, this program parses just those fields.
+/// 
+/// 0xca7
+/// 
+/// 
+/// TODO: add statistics
+/// TODO: add command line args
+
+
 use std::env;
-use std::fs::File;
-use std::error::Error;
 use std::time::Instant;
 
-use chrono::prelude::*;
-use csv;
-
-mod analyze;
-use analyze::{DataItem, DumpAnalysis};
-
-mod report;
-use report::{write_report, write_graph};
-
-mod utils;
-use utils::{
-    preprocess, 
-    visualize, 
-    get_line_count, 
-    progress_bar
-};
-
-/// read the csv file given by `filepath` and de-dupe the file using 
-/// a `HashSet`. This returns unique entries (rows) of the csv.
-fn read_csv(filepath: &str) -> Result<DumpAnalysis, Box<dyn Error>> {
-
-    let mut count: usize = 0;
-    let mut data = DumpAnalysis::new();
-
-    // get the number of lines in the csv minus the header line
-    let no_lines = get_line_count(filepath)?;
-
-    let file = File::open(filepath)?;
-    let mut rdr = csv::Reader::from_reader(file);
-
-    for result in rdr.deserialize() {
-        let record: DataItem = result?;
-        data.insert_packet(record);
-        count += 1;
-        progress_bar(no_lines, count);
-    }
-
-    print!("[+] read {} packets from csv\n", count);
-    Ok(data)
-
-}
+pub mod util;
+pub mod pinfo;
+pub mod dumpreader;
+pub mod analyze;
 
 fn usage() {
-    print!("USAGE:   netanalyze [PATH-TO-CSV-FILE] [NAME-OF-REPORT]\n");
-    print!("Example: netanalyze captures/test.csv report\n");
-    print!("-- to convert to CSV with the correct headers,\n");
-    print!("-- use the script \"captures/conv_csv.sh\"\n");
+    print!("\n-- NETANALYZE\n");
+    print!("-- ./netanalyze [PCAP file]\n");
+    print!("-- this will produce:\n");
+    print!("-- | report.txt - a short summary of the dump\n");
+    print!("-- | graph.png  - shows a graphical overview of the network\n");
+    print!("-- | out.png    - a dot file you can use with graphviz \n");
+    print!("-- | nx.html    - an interactive graph you can view in a browser\n");
+    print!("-- author: 0xca7\n\n");
 }
 
 fn main() {
+ 
+    let args: Vec<String> = env::args().collect(); 
 
-    let args: Vec<String> = env::args().collect();
-
-    // check the user supplied arguments
-    if args.len() != 3 {
+    if args.len() < 2 {
         usage();
         std::process::exit(1);
-    } else {
-        // check if the file to parse even exists
-        if !std::path::Path::new(&args[1]).exists() {
-            print!("file {} does not exist\n", args[1]);
-            std::process::exit(1);
-        }
     }
 
-    let mut now = Instant::now();
+    let capfile = args[1].as_str();
 
-    // get the pcap to appropriate csv format
-    print!("[+] converting to CSV\n");
-    preprocess(&args[1]);
-    print!("[+] conversion took {:?}\n", now.elapsed());
+    if !util::check_exists(capfile) {
+        print!("error: capture file does not exist\n");
+        std::process::exit(1);
+    }
 
+    let now = Instant::now();
 
-    // read the csv and get a hash set (de-duped)
-    now = Instant::now();
-    let mut filepath : String = args[1].clone();
-    filepath.push_str(".csv");
+    let mut cap = dumpreader::open_capture(capfile);
+    let packets = dumpreader::parse(&mut cap);
 
-    print!("[+] reading CSV: {}\n", filepath);
-    let mut data = match read_csv(&filepath) {
-        Ok(data) => data,
-        Err(e) => {
-            print!("error: {}\n", e);
-            std::process::exit(1);
-        }
+    let packetlist = packets.into_iter().collect::<Vec<_>>();
+
+    print!("[*] took {:?}, {} packets\n", now.elapsed(), packetlist.len());
+
+    print!("[+] reporting...\n");
+    let now = Instant::now();
+
+    match analyze::generate_report(&packetlist) {
+        Ok(()) => print!("[+] report done\n"),
+        Err(e) => eprint!("error: {}\n", e),
     };
 
-    print!("[+] reading CSV took {:?}\n", now.elapsed());
+    match analyze::dotfile(&packetlist) {
+        Ok(()) => print!("[+] writing dotfile done\n"),
+        Err(e) => eprint!("error: {}\n", e),
+    };
 
-    now = Instant::now();
+    match analyze::visualize(&packetlist) {
+        Ok(()) => print!("[+] visualization done\n"),
+        Err(e) => eprint!("error: {}\n", e),
+    };
 
-    print!("[+] analyzing data\n");
-    data.analyze();
-    print!("[+] analysis took {:?}\n", now.elapsed());
-
-    // create a report file and save it 
-    let local: DateTime<Local> = Local::now();
-    let filename = 
-        format!("results/{}-{}_{}_{}-{}_{}_{}.txt",
-        args[2], // this is the filename passed by the user
-        local.day(), local.month(), local.year(),
-        local.hour(), local.minute(), local.second());
-
-    print!("[+] report will be written as: {}\n", filename);
-    write_report(&data, &filename);
-
-    print!("[+] writing graph\n");
-    write_graph(&data);
-
-    now = Instant::now();
-    print!("[+] running visualizer\n");
-    visualize();
-    print!("[+] visualization took {:?}\n", now.elapsed());
-
-    print!("[+] done!\n");
+    print!("[*] took {:?}, {} packets\n", now.elapsed(), packetlist.len());
 
 }

@@ -16,206 +16,168 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
-use std::hash::Hash;
+use std::fs;
+use std::io::Error;
+use std::io::prelude::*;
 use std::collections::HashSet;
-use serde::Deserialize;
 
+use crate::pinfo::{PacketData};
 
+/*
+    NOTES:
+        - currently, a deduplication takes place for dotfiles and 
+          the csv file for the graph. this might be removed if port
+          numbers and/or protocols are added in future releases.
+          for now, the deduplication remains in place because we are
+          only looking at source/destination IP/MAC addrs.
+*/
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub enum PortType {
-    PortTcp,
-    PortUdp,
-}
+/// write the result as a dotfile
+pub fn dotfile(pv: &Vec<PacketData>) -> Result<(), Error> {
 
-#[derive(Deserialize, Debug, Hash, Eq, PartialEq)]
-pub struct DataItem {
-    #[serde(rename = "eth.src")]
-    smac: String,
-    #[serde(rename = "eth.dst")]
-    dmac: String,
-    #[serde(rename = "ip.src")]
-    sip:  String,
-    #[serde(rename = "ip.dst")]
-    dip:  String,
-    #[serde(rename = "ip.proto")]
-    proto: String,
-    #[serde(rename = "tcp.srcport")]
-    sport: Option<String>,
-    #[serde(rename = "tcp.dstport")]
-    dport: Option<String>,
-    #[serde(rename = "tcp.srcport")]
-    usport: Option<String>,
-    #[serde(rename = "tcp.dstport")]
-    udport: Option<String>,
-    #[serde(rename = "_ws.col.Protocol")]
-    protostring: Option<String>,
-}
+    let mut connections = HashSet::new();
 
-impl DataItem {
+    let mut file = fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open("out.dot")
+                .unwrap();
 
-    pub fn get_srcip(&self) -> String {
-        self.sip.clone()
+    // TODO: if a node shall have a weight, it may be necessary to
+    //       add duplicates here, so the de-duplication may not even
+    //       be necessary.
+    for item in pv {
+        connections.insert(item.write_dot());
     }
 
-    pub fn get_dstip(&self) -> String {
-        self.dip.clone()
+    write!(file, "digraph g {{\n")?;
+    for item in connections {
+        write!(file, "{}", item)?;
     }
+    write!(file, "}}")?;
 
-    pub fn get_proto_string(&self) -> Option<String> {
-        self.protostring.clone()
-    }
-
+    Ok(())
 }
 
-/// contains unique packets and analysis results
-pub struct DumpAnalysis {
-    /// stores the unique packets found in the dump
-    unique_packets: HashSet<DataItem>,
-    /// stores all connections src IP -> dst IP
-    pub connections: Vec<(String, String, String)>,
-    /// stores connections only for IP addresses
-    pub ip_connections: Vec<(String, String)>,
-    /// stores all protocols found by name
-    proto_names: Vec<String>,
-    /// stores all unique ports
-    ports: Vec<(PortType, u16)>,
-}
+/// just executes the python program to visualize
+/// for now, might be re-done in rust later
+pub fn visualize(pv: &Vec<PacketData>) -> Result<(), Error> {
 
-impl DumpAnalysis {
+    let mut connections = HashSet::new();
 
-    /// get a new DumpAnalysis instance
-    pub fn new() -> DumpAnalysis {
-        DumpAnalysis {
-            unique_packets:     HashSet::new(),
-            connections:        Vec::new(),
-            ip_connections:     Vec::new(),
-            proto_names:        Vec::new(),
-            ports:              Vec::new(),
+    let mut file = fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open("graph.csv")
+                .unwrap();
+
+    for item in pv {
+        connections.insert(item.write_graph());
+    }
+
+    // NOTE: this is de-duplicated, because the CSV doesn't gain anything
+    //       by having duplicates, of course, it may be that we actually 
+    //       want a weight here, so I will leave this open for now.
+    write!(file, "src,dst\n")?;
+    for item in connections {
+        write!(file, "{}", item)?;
+    }
+
+    let output = std::process::Command::new("python3")
+        .arg("py/visualize.py")
+        .output()
+        .expect("failed to execute python visualizer");
+        if !output.status.success() {
+            print!("[+] error visualization\n");
+            std::process::exit(1);
         }
+
+    Ok(())
+}
+
+/// generate a report as a textfile 
+pub fn generate_report(pv: &Vec<PacketData>) -> Result<(), Error> {
+
+    let mut linebreak: usize =  1;
+    let mut ips = HashSet::new();
+    let mut ports = HashSet::new();
+    let mut macs = HashSet::new();
+
+    // get the unique ip addresses communicating 
+    for item in pv {
+        ips.insert(item.get_sip());
+        ips.insert(item.get_dip());
+        ports.insert(item.get_sport());
+        ports.insert(item.get_dport());
+        macs.insert(item.get_smac());
+        macs.insert(item.get_dmac());
     }
 
-    /// len is always the largest item, which is the number
-    /// of unique packets stored in this struct
-    pub fn len(&self) -> usize {
-        self.unique_packets.len()
+    let mut file = fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open("report.txt")
+                .unwrap();
+
+    write!(file, "-- Unique IP Adresses\n")?;
+    for item in ips {
+
+        // nicely format the strings in the report 
+        let mut item = item.to_string();
+        for _ in 0..15-item.len() {
+            item.push(' ')
+        }
+        write!(file, "{} ", item)?;
+
+        if linebreak == 4 {
+            write!(file, "\n")?;
+            linebreak = 0;
+        }
+
+        linebreak += 1;
     }
 
-    /// insert a packet into the analysis only if it is unique
-    pub fn insert_packet(&mut self, packet: DataItem) {
-        self.unique_packets.insert(packet);
+    linebreak = 1;
+    write!(file, "\n\n-- Unique MAC Adresses\n")?;
+    for item in macs {
+
+        write!(file, "{}    ", item)?;
+
+        if linebreak == 4 {
+            write!(file, "\n")?;
+            linebreak = 0;
+        }
+
+        linebreak += 1;
     }
 
-    /// analyze the unique packets stored inside this struct
-    pub fn analyze(&mut self) {
-        self.analyze_connections_full();
-    }
+    linebreak = 1;
+    write!(file, "\n\n-- Unique Lower Ports \n")?;
 
-    /// analyzes all connections with IP:Port or
-    /// MAC addresses, also includes the protocol name
-    fn analyze_connections_full(&mut self) {
+    let mut ports = ports.into_iter().collect::<Vec<_>>();
+    ports.sort();
 
-        let mut ip_connections= HashSet::new();
-        let mut connections = HashSet::new();
-        let mut ports = HashSet::new();
-        let mut proto_names =  HashSet::new();
+    for item in ports {
 
-        for item in &self.unique_packets {
+        if item.0 < 32768 {
+            // nicely format the strings in the report 
+            let mut item = item.to_string();
+            for _ in 0..6-item.len() {
+                item.push(' ')
+            }
+            write!(file, "{} ", item)?;
 
-            let mut proto = String::new();
-
-            // set to layer 2 packet by default
-            let mut src = format!("{}", item.smac);
-            let mut dst = format!("{}", item.dmac);
-
-            // check if there is an IP, if yes, overwrite src/dst
-            let sip = item.get_srcip();
-            let dip = item.get_dstip();
-
-            if sip != "" && dip != "" {
-
-                // log only which IP talks to which IP, deduplicate
-                ip_connections.insert((sip.clone(), dip.clone()));
-
-                // log IP, port and protocol here
-
-                // UDP
-                if item.usport.is_some() {
-                    src = format!("{}:{}", sip, item.usport.as_ref().unwrap());
-                    dst = format!("{}:{}", dip, item.udport.as_ref().unwrap());
-
-                    let port = get_port(&item.usport.as_ref().unwrap(), 
-                        &item.udport.as_ref().unwrap());
-                    ports.insert((PortType::PortUdp, port));
-                }
-                // TCP
-                else if item.sport.is_some() {
-                    src = format!("{}:{}", sip, item.sport.as_ref().unwrap());
-                    dst = format!("{}:{}", dip, item.dport.as_ref().unwrap());
-
-                    let port = get_port(&item.sport.as_ref().unwrap(), 
-                    &item.dport.as_ref().unwrap());
-                    ports.insert((PortType::PortTcp, port));
-                } else {
-                    // all others
-                    src = format!("{}", item.sip); 
-                    dst = format!("{}", item.dip);
-                }
-
-            } // if there is an IP
-
-            // some protocols might lack a name
-            if item.protostring.is_some() {
-                proto = item.get_proto_string().unwrap();
-                proto_names.insert(proto.clone());
+            if linebreak == 12 {
+                write!(file, "\n")?;
+                linebreak = 0;
             }
 
-            // deduplicate
-            connections.insert((src, dst, proto));
+            linebreak += 1;
         }
-
-        // convert to vector
-        self.connections = connections.into_iter().collect();
-        self.ip_connections = ip_connections.into_iter().collect();
-        self.proto_names = proto_names.into_iter().collect();
-        self.ports = ports.into_iter().collect();
     }
 
+    Ok(())
 }
-
-/// getter implementation
-impl DumpAnalysis {
-
-    /// getter for connections
-    pub fn get_connections(&self) -> Vec<(String, String, String)> {
-        self.connections.clone()
-    }
-
-    /// getter for ip connections
-    pub fn get_ip_connections(&self) -> Vec<(String, String)> {
-        self.ip_connections.clone()
-    }
-
-    /// getter for protocol names
-    pub fn get_protocol_names(&self) -> Vec<String> {
-        self.proto_names.clone()
-    }
-
-    /// getter for ports
-    pub fn get_ports(&self) -> Vec<(PortType, u16)> {
-        self.ports.clone()
-    }
-
-}
-
-fn get_port(sport: &String, dport: &String) -> u16 {
-
-    // parse to u16
-    let sport = sport.parse::<u16>().expect("error parse sport");
-    let dport = dport.parse::<u16>().expect("error parse dport");
-
-    // get the smaller port
-    std::cmp::min(sport, dport)
-}
-
