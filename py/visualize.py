@@ -1,6 +1,22 @@
 """
     visualizes connections between individual
     hosts, using IPs
+
+    net-analyze - quick summary of pcap dumps
+    Copyright (C) 2022  0xca7
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from pyvis.network import Network
@@ -39,11 +55,11 @@ class Visualizer:
     """
     write a plot of the graph to a file
     """
-    def show(self, path):
+    def show(self):
         nx.draw(self.G, with_labels=True, node_size=20, 
             font_size=2, node_color="tab:green", edge_color='tab:grey',
             width=0.25)
-        filename = path + '/' + 'graph.png'
+        filename = 'graph.png'
         plt.savefig(filename, dpi=1200)
 
     def interactive(self):
@@ -62,7 +78,7 @@ def read_graph():
     nodes = set()
     edges = list()
 
-    df = pd.read_csv('results/graph.csv')
+    df = pd.read_csv('graph.csv')
 
     for (src,dst) in zip(df['src'], df['dst']):
         
@@ -92,7 +108,7 @@ if __name__ == '__main__':
     v.add_edges(edges)
 
     print('[+] writing result')
-    v.show('results')
+    v.show()
 
     print('[+] interactive')
     v.interactive()
