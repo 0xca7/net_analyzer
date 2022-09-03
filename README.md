@@ -53,9 +53,18 @@ The .dot/.csv file can by opened in programs such as `gephi`.
 
 # Usage
 ```
+cargo run --release [PATH-TO-PCAP]
+
+# if you want to build a release and run it from
+# a different directory, make sure that the `py`
+# directory is in the same directory where the
+# release is. the python part is needed by this 
+# program for visualization
+
+cp -rv py /path/to/target/dir
 cargo build --release
-cd target/release/
-./net_analyze [PATH-TO-PCAP]
+cp target/release /path/to/target/dir
+
 ```
 
 # Dependencies 
